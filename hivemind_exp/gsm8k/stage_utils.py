@@ -3,6 +3,12 @@ import time
 from collections import defaultdict
 from typing import Sequence
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 import hivemind_exp.gsm8k.stage1_rewards as stage1_rewards
 import hivemind_exp.gsm8k.stage2_rewards as stage2_rewards
 import hivemind_exp.gsm8k.stage3_rewards as stage3_rewards
@@ -148,6 +154,9 @@ def gsm8k_stage_data(
         )
 
     def round_winners(limit=10) -> Sequence[str]:
+        logger = logging.getLogger(f"{__name__}:round_winners")
+        logger.info("Starting round_winners function")
+        
         final_stage_outputs, _ = merged_prev_stage_datasets(
             dht,
             node,
@@ -158,9 +167,30 @@ def gsm8k_stage_data(
             check_interval=check_interval,
             log_tag=log_tag,
         )
+        
+        logger.info(f"Received final_stage_outputs with length: {len(final_stage_outputs)}")
+        logger.info(f"Sample of final_stage_outputs structure: {str(final_stage_outputs[:1])}")
+        
         rewards = defaultdict(float)
-        for outputs in final_stage_outputs:
+        for idx, outputs in enumerate(final_stage_outputs):
+            logger.info(f"Processing outputs batch {idx + 1}/{len(final_stage_outputs)}")
             for node_key, output in outputs.items():
+                logger.info(f"Processing node {node_key}")
+                logger.info(f"Output keys available: {list(output.keys())}")
+                
+                if "question" not in output:
+                    logger.warning(f"Missing 'question' key in output for node {node_key}")
+                    logger.warning(f"Full output structure: {output}")
+                    continue
+                    
+                if "stage3_prompt" not in output:
+                    logger.warning(f"Missing 'stage3_prompt' key in output for node {node_key}")
+                    continue
+                    
+                if "final_agent_decision" not in output:
+                    logger.warning(f"Missing 'final_agent_decision' key in output for node {node_key}")
+                    continue
+                    
                 prompts = [
                     [
                         {"role": "system", "content": output["question"]},
