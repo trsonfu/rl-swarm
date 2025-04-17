@@ -14,7 +14,10 @@ def extract_xml_identity(text: str) -> str:
     return id.strip()
 
 
-def extract_xml_ids(text: str) -> str:
+def extract_xml_ids(text: str) -> list[str]:
+    if not text:
+        print("[WARN] extract_xml_ids received None or empty input")
+        return []
     ids = []
     ids_raw = text.split("<student>")[1:]
     for id in ids_raw:
@@ -62,7 +65,17 @@ def proper_id_reward_func(
     prompts, completions, answer, weighting=2.0, logging=True, **kwargs
 ) -> list[float]:
     responses = [completion[0]["content"] for completion in completions]
-    p = prompts[0][-1]["content"]
+    # Ensure prompt content exists
+    p = None
+    if prompts and isinstance(prompts[0], list) and prompts[0]:
+        last_prompt = prompts[0][-1]
+        if isinstance(last_prompt, dict):
+            p = last_prompt.get("content")
+
+    if not p:
+        print("[ERROR] proper_id_reward_func: Prompt content is None or invalid format. Skipping reward.")
+        return [0.0 for _ in completions]
+
     agent_ids = extract_xml_ids(p)
     extracted_responses = [extract_xml_identity(r) for r in responses]
     if (random.random() < 0.01) and logging:  # 1% chance to write samples into a file
